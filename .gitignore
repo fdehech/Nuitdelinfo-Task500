@@ -1,0 +1,68 @@
+# This file is used to ignore files and directories in the project
+# Add patterns for files that should not be committed to version control
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Storage directories
+storage/
+!storage/.gitkeep
+
+# Logs
+*.log
+logs/
+nginx/logs/
+
+# Docker volumes
+postgres_data/
+redis_data/
+mayan_media/
+ollama_models/
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Backups
+*.sql
+*.tar.gz
+*.zip
+backup/
