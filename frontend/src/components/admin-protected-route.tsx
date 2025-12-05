@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react"
+import type { ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import AdminDashboard from "@/components/admin-dashboard"
 
-export default function AdminProtectedRoute() {
+interface AdminProtectedRouteProps {
+    children?: ReactNode
+}
+
+export default function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
     const navigate = useNavigate()
     const [isAuthorized, setIsAuthorized] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
@@ -25,5 +30,5 @@ export default function AdminProtectedRoute() {
 
     if (isLoading) return null
 
-    return isAuthorized ? <AdminDashboard /> : null
+    return isAuthorized ? (children || <AdminDashboard />) : null
 }

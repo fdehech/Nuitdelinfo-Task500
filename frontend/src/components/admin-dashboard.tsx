@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { LogOut, Users, FileText, BarChart3, Edit, Trash2, Plus, Upload } from "lucide-react"
+import { LogOut, Users, FileText, BarChart3, Edit, Trash2, Plus, Upload, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
@@ -252,6 +252,14 @@ export default function AdminDashboard() {
                             <div className="w-2 h-2 bg-accent rounded-full pulse-accent" />
                             <span className="text-sm text-muted-foreground font-mono">Admin</span>
                         </div>
+                        <Button
+                            onClick={() => navigate("/admin/profile")}
+                            className="bg-accent/20 hover:bg-accent/30 text-accent border-2 border-accent font-semibold py-2 h-auto font-mono rounded-none flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-accent/50"
+                            variant="outline"
+                        >
+                            <User size={16} />
+                            [PROFILE]
+                        </Button>
                         <Button
                             onClick={handleLogout}
                             className="bg-accent/20 hover:bg-accent/30 text-accent border-2 border-accent font-semibold py-2 h-auto font-mono rounded-none flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-accent/50"

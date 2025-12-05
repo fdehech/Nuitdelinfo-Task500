@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react"
+import type { ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import DocumentAnalyzer from "@/components/document-analyzer"
 
-export default function ProtectedRoute() {
+interface ProtectedRouteProps {
+    children?: ReactNode
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     const navigate = useNavigate()
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
@@ -20,5 +25,5 @@ export default function ProtectedRoute() {
 
     if (isLoading) return null
 
-    return isLoggedIn ? <DocumentAnalyzer /> : null
+    return isLoggedIn ? (children || <DocumentAnalyzer />) : null
 }

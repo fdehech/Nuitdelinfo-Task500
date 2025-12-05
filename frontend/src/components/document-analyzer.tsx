@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Trash2, Upload, LogOut, Zap } from "lucide-react"
+import { Trash2, Upload, LogOut, Zap, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
@@ -197,6 +197,14 @@ export default function DocumentAnalyzer() {
                             <div className="w-2 h-2 bg-accent rounded-full pulse-accent" />
                             <span className="text-sm text-muted-foreground font-mono">{userDisplay}</span>
                         </div>
+                        <Button
+                            onClick={() => navigate("/profile")}
+                            className="bg-accent/20 hover:bg-accent/30 text-accent border-2 border-accent font-semibold py-2 h-auto font-mono rounded-none flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-accent/50"
+                            variant="outline"
+                        >
+                            <User size={16} />
+                            [PROFILE]
+                        </Button>
                         <Button
                             onClick={handleLogout}
                             className="bg-accent/20 hover:bg-accent/30 text-accent border-2 border-accent font-semibold py-2 h-auto font-mono rounded-none flex items-center gap-2 transition-all hover:shadow-lg hover:shadow-accent/50"

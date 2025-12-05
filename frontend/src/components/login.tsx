@@ -20,24 +20,36 @@ export default function LoginPage() {
         try {
             // 1. Login to get token (using fetch directly for x-www-form-urlencoded)
             const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+            console.log("🔐 LOGIN ATTEMPT:", { email, API_URL });
+
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: new URLSearchParams({ username: email, password: password })
             });
 
+            console.log("📡 LOGIN RESPONSE:", {
+                status: response.status,
+                ok: response.ok,
+                statusText: response.statusText
+            });
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+                console.error("❌ LOGIN FAILED:", errorData);
                 throw new Error(errorData.detail || "Invalid email or password");
             }
 
             const tokenData = await response.json();
+            console.log("✅ LOGIN SUCCESS - Got token");
             localStorage.setItem("accessToken", tokenData.access_token);
 
             // 2. Get user details
             const user = await api.get<{ is_superuser: boolean, email: string, full_name: string }>("/users/me", {
                 token: tokenData.access_token
             });
+
+            console.log("👤 USER DATA:", { email: user.email, is_superuser: user.is_superuser });
 
             localStorage.setItem("userLoggedIn", "true")
             localStorage.setItem("userEmail", user.email)
@@ -46,8 +58,13 @@ export default function LoginPage() {
             // Redirect based on user role
             navigate(user.is_superuser ? "/admin" : "/")
         } catch (error) {
-            console.error("Login error:", error)
+            console.error("🚨 LOGIN ERROR:", error)
             setError(error instanceof Error ? error.message : "Login failed. Please check your credentials.")
+            // CRITICAL: Do NOT set localStorage on error!
+            localStorage.removeItem("userLoggedIn")
+            localStorage.removeItem("accessToken")
+            localStorage.removeItem("userEmail")
+            localStorage.removeItem("userType")
         } finally {
             setIsLoading(false)
         }

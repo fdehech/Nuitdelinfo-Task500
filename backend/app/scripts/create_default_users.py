@@ -14,14 +14,14 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from sqlalchemy import select
-from app.core.database import AsyncSessionLocal
+from app.core.database import SessionLocal
 from app.core.security import get_password_hash
 from app.models.user import User
 
 
 async def create_default_users():
     """Create default admin and user accounts if they don't exist."""
-    async with AsyncSessionLocal() as db:
+    async with SessionLocal() as db:
         # Default users to create
         default_users = [
             {
