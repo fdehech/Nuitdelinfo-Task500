@@ -1,34 +1,56 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jose import jwt, JWTError
+from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
 from app.core.config import settings
-from typing import Annotated
+from app.core import security
+from app.core.database import get_db
+from app.models.user import User
+from app.schemas.user import TokenPayload
 
-# This defines the scheme that the API expects (Bearer token)
-# The tokenUrl is just for documentation in Swagger UI
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.KEYCLOAK_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token")
+# OAuth2PasswordBearer will look for the token in the Authorization header
+# tokenUrl is the URL where the client can get the token (used for Swagger UI)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(
+    db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme)
+) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        # In a production environment, you should fetch the JWKS from Keycloak
-        # and verify the signature. For development/MVP, we might decode without verification
-        # or verify against a known public key.
-        # For now, we'll decode unverified to get the payload, but in a real app
-        # you MUST verify the signature.
-        
-        # options={"verify_signature": False} is used here for simplicity in this starter
-        # implementation. To make it secure, fetch the public key from Keycloak's JWKS endpoint.
-        payload = jwt.get_unverified_claims(token)
-        
-        username: str = payload.get("preferred_username")
-        if username is None:
-            raise credentials_exception
-            
-        return payload
-    except JWTError:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        )
+        token_data = TokenPayload(**payload)
+    except (JWTError, ValidationError):
         raise credentials_exception
+        
+    query = select(User).where(User.id == token_data.sub)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise credentials_exception
+    return user
+
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+async def get_current_active_superuser(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=400, detail="The user doesn't have enough privileges"
+        )
+    return current_user

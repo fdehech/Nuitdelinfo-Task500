@@ -8,7 +8,8 @@ from app.api import deps
 from app.core.database import get_db
 from app.core.logger import logger
 from app.models.document import Document
-from app.schemas.document import Document as DocumentSchema
+from app.models.user import User
+from app.schemas.document import Document as DocumentSchema, DocumentUpdate
 from app.services.mayan import mayan_service
 from app.services.ollama import ollama_service
 
@@ -18,7 +19,7 @@ router = APIRouter()
 async def upload_document(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(deps.get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Upload a new document.
@@ -26,7 +27,7 @@ async def upload_document(
     2. Analyze with Ollama (mock/real)
     3. Save metadata to DB
     """
-    user_id = current_user.get("sub", "unknown")
+    user_id = str(current_user.id)
     logger.info(f"User {user_id} uploading document: {file.filename}")
     
     try:
@@ -75,13 +76,20 @@ async def read_documents(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(deps.get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Retrieve documents.
     """
-    # Filter by owner
-    query = select(Document).where(Document.owner_id == current_user.get("sub")).offset(skip).limit(limit)
+    query = select(Document)
+    
+    # If not superuser, only show own documents
+    if not current_user.is_superuser:
+        query = query.where(Document.owner_id == str(current_user.id))
+    
+    # Apply pagination
+    query = query.offset(skip).limit(limit)
+    
     result = await db.execute(query)
     documents = result.scalars().all()
     return documents
@@ -90,16 +98,74 @@ async def read_documents(
 async def read_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(deps.get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Get document by ID.
     """
-    query = select(Document).where(Document.id == document_id, Document.owner_id == current_user.get("sub"))
+    query = select(Document).where(Document.id == document_id)
+    if not current_user.is_superuser:
+        query = query.where(Document.owner_id == str(current_user.id))
+        
     result = await db.execute(query)
     document = result.scalar_one_or_none()
     
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
         
+    return document
+
+@router.delete("/{document_id}", response_model=DocumentSchema)
+async def delete_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Delete document.
+    """
+    query = select(Document).where(Document.id == document_id)
+    if not current_user.is_superuser:
+        query = query.where(Document.owner_id == str(current_user.id))
+        
+    result = await db.execute(query)
+    document = result.scalar_one_or_none()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    await db.delete(document)
+    await db.commit()
+    return document
+
+@router.put("/{document_id}", response_model=DocumentSchema)
+async def update_document(
+    document_id: str,
+    document_in: DocumentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Update document metadata.
+    """
+    query = select(Document).where(Document.id == document_id)
+    if not current_user.is_superuser:
+        query = query.where(Document.owner_id == str(current_user.id))
+        
+    result = await db.execute(query)
+    document = result.scalar_one_or_none()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Update fields
+    if document_in.title is not None:
+        document.title = document_in.title
+    if document_in.summary is not None:
+        document.summary = document_in.summary
+    if document_in.tags is not None:
+        document.tags = document_in.tags
+        
+    await db.commit()
+    await db.refresh(document)
     return document

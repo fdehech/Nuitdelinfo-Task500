@@ -24,9 +24,12 @@ if settings.ALLOWED_ORIGINS:
 app.include_router(api_router, prefix=settings.API_V1_STR)
 logger.info(f"API router included with prefix: {settings.API_V1_STR}")
 
+from init_db import init_db
+
 @app.on_event("startup")
 async def startup_event():
     logger.info(f"Starting {settings.PROJECT_NAME} in {settings.ENVIRONMENT} mode")
+    await init_db()
     logger.info(f"API documentation available at: {settings.API_V1_STR}/docs")
 
 @app.on_event("shutdown")

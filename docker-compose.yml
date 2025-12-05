@@ -95,6 +95,8 @@ services:
       MAYAN_REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/2
       MAYAN_DOCUMENTS_STORAGE_BACKEND: django.core.files.storage.FileSystemStorage
       MAYAN_DOCUMENTS_STORAGE_BACKEND_ARGUMENTS: "{'location':'/var/lib/mayan/documents'}"
+      MAYAN_ADMIN_PASSWORD: admin
+      MAYAN_ADMIN_EMAIL: admin@example.com
     volumes:
       - mayan_media:/var/lib/mayan
       - ./storage/documents:/var/lib/mayan/documents
@@ -120,6 +122,9 @@ services:
     container_name: document-vault-ollama
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - ollama_models:/root/.ollama
     entrypoint: ["/bin/sh", "-c", "ollama serve & ollama pull llama3.1 & wait"]

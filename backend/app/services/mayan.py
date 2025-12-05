@@ -5,20 +5,54 @@ from fastapi import UploadFile, HTTPException
 class MayanService:
     def __init__(self):
         self.base_url = settings.MAYAN_API_URL
+        if not self.base_url.endswith("/v4"):
+            self.base_url = f"{self.base_url}/v4"
         self.token = settings.MAYAN_API_TOKEN
         self.headers = {"Authorization": f"Token {self.token}"}
 
-    async def upload_document(self, file: UploadFile, document_type_id: int = 1):
+    async def get_or_create_document_type(self, label: str = "Default"):
         """
-        Uploads a document to Mayan EDMS.
-        Note: This is a simplified implementation. Mayan usually requires a multi-step process:
-        1. Create document stub
-        2. Upload file version
+        Ensures a document type exists. Returns its ID.
         """
         async with httpx.AsyncClient() as client:
             try:
+                # List document types to check if it exists
+                resp = await client.get(
+                    f"{self.base_url}/document_types/",
+                    headers=self.headers
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                
+                for doc_type in data.get("results", []):
+                    if doc_type["label"] == label:
+                        return doc_type["id"]
+                
+                # Create if not exists
+                create_resp = await client.post(
+                    f"{self.base_url}/document_types/",
+                    headers=self.headers,
+                    json={"label": label}
+                )
+                create_resp.raise_for_status()
+                return create_resp.json()["id"]
+                
+            except Exception as e:
+                print(f"Error checking/creating document type: {e}")
+                if settings.ENVIRONMENT == "development":
+                    return 1 # Fallback for dev
+                raise HTTPException(status_code=500, detail=f"Mayan Document Type Error: {e}")
+
+    async def upload_document(self, file: UploadFile, document_type_label: str = "Default"):
+        """
+        Uploads a document to Mayan EDMS.
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                # Ensure document type exists
+                document_type_id = await self.get_or_create_document_type(document_type_label)
+                
                 # Step 1: Create Document Stub
-                # We assume a default document type exists (ID 1)
                 create_resp = await client.post(
                     f"{self.base_url}/documents/",
                     headers=self.headers,
@@ -33,9 +67,8 @@ class MayanService:
                 document_id = document_data["id"]
 
                 # Step 2: Upload the file content
-                # Mayan API endpoint for uploading a new version might differ based on version
-                # Usually it's POST /documents/{id}/files/ or similar
-                # For Mayan 4.x: POST /documents/{id}/versions/
+                # Mayan API endpoint for uploading a new version/file
+                # We use the 'files' endpoint for the initial file
                 
                 # Read file content
                 content = await file.read()
@@ -54,7 +87,6 @@ class MayanService:
 
             except httpx.HTTPStatusError as e:
                 print(f"Mayan API Error: {e.response.text}")
-                # For development, if Mayan is not reachable or configured, return a mock ID
                 if settings.ENVIRONMENT == "development":
                     return "mock-mayan-id-123"
                 raise HTTPException(status_code=500, detail=f"Failed to upload to Mayan EDMS: {e}")

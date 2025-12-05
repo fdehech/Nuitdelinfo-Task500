@@ -3,7 +3,9 @@ from typing import Any, List
 from pydantic import BaseModel
 
 from app.api import deps
+from app.models.user import User
 from app.services.ollama import ollama_service
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -17,27 +19,62 @@ class ChatResponse(BaseModel):
 @router.post("/", response_model=ChatResponse)
 async def chat_with_documents(
     request: ChatRequest,
-    current_user: dict = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Chat with documents (RAG placeholder).
-    In a real implementation, this would:
-    1. Retrieve relevant chunks from vector DB (using document_ids)
-    2. Construct prompt with context
-    3. Send to Ollama
+    Chat with documents using basic context retrieval.
     """
     
-    # Mock RAG implementation
-    prompt = f"User asked: {request.message}. Context: [Documents {request.document_ids}]"
+    # 1. Retrieve relevant documents
+    # If document_ids are provided, use them. Otherwise, fetch recent 5 documents.
+    context_text = ""
     
-    # We use the analyze_text method for now as a generic generation endpoint
-    # In a real app, we'd have a dedicated chat/generate method
+    if request.document_ids:
+        # Fetch specific documents
+        # Note: In a real app we'd validate ownership here too
+        from app.models.document import Document
+        from sqlalchemy import select
+        
+        query = select(Document).where(Document.id.in_(request.document_ids))
+        if not current_user.is_superuser:
+            query = query.where(Document.owner_id == str(current_user.id))
+            
+        result = await db.execute(query)
+        documents = result.scalars().all()
+    else:
+        # Fetch recent documents as general context
+        from app.models.document import Document
+        from sqlalchemy import select, desc
+        
+        query = select(Document)
+        if not current_user.is_superuser:
+            query = query.where(Document.owner_id == str(current_user.id))
+        
+        query = query.order_by(desc(Document.created_at)).limit(5)
+        result = await db.execute(query)
+        documents = result.scalars().all()
+        
+    # 2. Construct Context
+    if documents:
+        context_text = "Here is some context from the user's documents:\n\n"
+        for doc in documents:
+            summary = doc.summary or "No summary available."
+            tags = ", ".join(doc.tags) if doc.tags else "No tags."
+            context_text += f"Document: {doc.title}\nSummary: {summary}\nTags: {tags}\n\n"
+    else:
+        context_text = "No documents found to provide context."
+
+    # 3. Construct Prompt
+    messages = [
+        {"role": "system", "content": "You are a helpful AI assistant for a Document Vault. Use the provided document context to answer the user's question. If the answer is not in the context, say so, but try to be helpful."},
+        {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {request.message}"}
+    ]
+    
+    # 4. Send to Ollama
     try:
-        # This is a hacky way to use the existing service for chat
-        # Ideally OllamaService should have a 'chat' method
-        response_json = await ollama_service.analyze_text(prompt)
-        # The analyze_text returns JSON with summary/tags, so this might not be perfect for chat
-        # But for a starter, we'll just return a static message if it fails or the raw response
-        return {"response": f"AI Response to: {request.message} (RAG not fully implemented yet)"}
+        response_text = await ollama_service.chat(messages)
+        return {"response": response_text}
     except Exception as e:
-        return {"response": "I'm sorry, I couldn't process your request at the moment."}
+        print(f"Chat Error: {e}")
+        return {"response": "I'm sorry, I encountered an error while processing your request."}

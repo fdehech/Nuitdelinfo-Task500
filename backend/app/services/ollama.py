@@ -4,7 +4,7 @@ from app.core.config import settings
 class OllamaService:
     def __init__(self):
         self.base_url = settings.OLLAMA_API_URL
-        self.model = "llama2" # Default model
+        self.model = "llama3.1" # Default model
 
     async def analyze_text(self, text: str):
         """
@@ -41,5 +41,27 @@ class OllamaService:
                 print(f"Ollama Error: {e}")
                 # Return mock data for dev if Ollama fails
                 return '{"summary": "Mock summary for development.", "tags": ["mock", "dev", "test"]}'
+
+    async def chat(self, messages: list):
+        """
+        Sends chat messages to Ollama.
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.post(
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": messages,
+                        "stream": False
+                    },
+                    timeout=60.0
+                )
+                resp.raise_for_status()
+                result = resp.json()
+                return result.get("message", {}).get("content", "")
+            except Exception as e:
+                print(f"Ollama Chat Error: {e}")
+                return "I'm sorry, I couldn't process your request at the moment. Please ensure Ollama is running."
 
 ollama_service = OllamaService()
