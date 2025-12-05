@@ -14,12 +14,6 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost"]
     
-    # Keycloak
-    KEYCLOAK_URL: str
-    KEYCLOAK_REALM: str
-    KEYCLOAK_CLIENT_ID: str
-    KEYCLOAK_CLIENT_SECRET: str
-    
     # Integrations
     MAYAN_API_URL: str
     MAYAN_API_TOKEN: str

@@ -9,13 +9,13 @@ export default function LoginPage() {
     const navigate = useNavigate()
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
-    const [authMethod, setAuthMethod] = useState<"email" | "sso">("email")
-    const [userType, setUserType] = useState<"user" | "admin">("user")
     const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState("")
 
     const handleEmailLogin = async (e: FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
+        setError("")
 
         try {
             // 1. Login to get token (using fetch directly for x-www-form-urlencoded)
@@ -26,7 +26,10 @@ export default function LoginPage() {
                 body: new URLSearchParams({ username: email, password: password })
             });
 
-            if (!response.ok) throw new Error("Login failed");
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || "Invalid email or password");
+            }
 
             const tokenData = await response.json();
             localStorage.setItem("accessToken", tokenData.access_token);
@@ -40,26 +43,14 @@ export default function LoginPage() {
             localStorage.setItem("userEmail", user.email)
             localStorage.setItem("userType", user.is_superuser ? "admin" : "user")
 
+            // Redirect based on user role
             navigate(user.is_superuser ? "/admin" : "/")
         } catch (error) {
             console.error("Login error:", error)
-            alert("Login failed. Please check your credentials.")
+            setError(error instanceof Error ? error.message : "Login failed. Please check your credentials.")
         } finally {
             setIsLoading(false)
         }
-    }
-
-    const handleSSOLogin = async (provider: "google" | "github") => {
-        setIsLoading(true)
-
-        // Mock SSO flow
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-
-        localStorage.setItem("userLoggedIn", "true")
-        localStorage.setItem("userProvider", provider)
-        localStorage.setItem("userType", userType)
-        setIsLoading(false)
-        navigate(userType === "admin" ? "/admin" : "/")
     }
 
     return (
@@ -71,174 +62,79 @@ export default function LoginPage() {
                         <div className="text-4xl font-mono pulse-accent">▓▒░</div>
                         <h1 className="text-4xl font-bold text-accent font-mono">DOC.ROASTER</h1>
                     </div>
-                    <p className="text-muted-foreground text-sm font-mono">&gt; ACCESS GRANTED... maybe</p>
+                    <p className="text-muted-foreground text-sm font-mono">&gt; AUTHENTICATION REQUIRED</p>
                 </div>
 
                 {/* Login Card */}
                 <Card className="p-8 bg-card border-2 border-accent/50 card-glow">
                     <div className="space-y-6">
-                        {/* User Type Selection */}
-                        <div className="flex gap-2 border-b border-accent/30 mb-6">
-                            <button
-                                onClick={() => setUserType("user")}
-                                className={`flex-1 pb-3 text-center text-sm font-mono font-semibold transition-colors ${userType === "user"
-                                    ? "text-accent border-b-2 border-accent"
-                                    : "text-muted-foreground hover:text-accent/70"
-                                    }`}
-                            >
-                                USER LOGIN
-                            </button>
-                            <button
-                                onClick={() => setUserType("admin")}
-                                className={`flex-1 pb-3 text-center text-sm font-mono font-semibold transition-colors ${userType === "admin"
-                                    ? "text-accent border-b-2 border-accent"
-                                    : "text-muted-foreground hover:text-accent/70"
-                                    }`}
-                            >
-                                ADMIN LOGIN
-                            </button>
+                        <div className="text-center">
+                            <h2 className="text-xl font-bold text-accent font-mono mb-2">[LOGIN]</h2>
+                            <p className="text-xs text-muted-foreground font-mono">
+                                Enter your credentials to access the system
+                            </p>
                         </div>
 
-                        {/* Tab Selection for Auth Method */}
-                        <div className="flex gap-2 border-b border-accent/30 mb-6">
-                            <button
-                                onClick={() => setAuthMethod("email")}
-                                className={`flex-1 pb-3 text-center text-sm font-mono font-semibold transition-colors ${authMethod === "email"
-                                    ? "text-accent border-b-2 border-accent"
-                                    : "text-muted-foreground hover:text-accent/70"
-                                    }`}
-                            >
-                                EMAIL/PASSWORD
-                            </button>
-                            <button
-                                onClick={() => setAuthMethod("sso")}
-                                className={`flex-1 pb-3 text-center text-sm font-mono font-semibold transition-colors ${authMethod === "sso"
-                                    ? "text-accent border-b-2 border-accent"
-                                    : "text-muted-foreground hover:text-accent/70"
-                                    }`}
-                            >
-                                SSO
-                            </button>
-                        </div>
-
-                        {/* Email/Password Form */}
-                        {authMethod === "email" && (
-                            <form onSubmit={handleEmailLogin} className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-accent mb-2 font-mono">&gt; EMAIL:</label>
-                                    <div className="relative">
-                                        <Mail size={18} className="absolute left-3 top-3 text-accent/60" />
-                                        <input
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="your@email.com"
-                                            required
-                                            className="w-full pl-10 pr-4 py-3 rounded-none border border-border bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-medium text-accent mb-2 font-mono">&gt; PASSWORD:</label>
-                                    <div className="relative">
-                                        <Lock size={18} className="absolute left-3 top-3 text-accent/60" />
-                                        <input
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="••••••••"
-                                            required
-                                            className="w-full pl-10 pr-4 py-3 rounded-none border border-border bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent font-mono text-sm"
-                                        />
-                                    </div>
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    disabled={isLoading || !email || !password}
-                                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold py-3 h-auto font-mono rounded-none"
-                                >
-                                    {isLoading ? "[AUTHENTICATING...]" : "[LOGIN]"}
-                                </Button>
-
-                                <div className="text-center text-xs text-muted-foreground font-mono">
-                                    <p className="mt-4">password hint: it's probably "password123"</p>
-                                </div>
-                            </form>
-                        )}
-
-                        {/* SSO Options */}
-                        {authMethod === "sso" && (
-                            <div className="space-y-3">
-                                <p className="text-xs text-muted-foreground font-mono mb-4">&gt; CHOOSE YOUR PROVIDER:</p>
-
-                                <Button
-                                    onClick={() => handleSSOLogin("google")}
-                                    disabled={isLoading}
-                                    className="w-full bg-accent/20 hover:bg-accent/30 text-accent border-2 border-accent font-semibold py-3 h-auto font-mono rounded-none"
-                                    variant="outline"
-                                >
-                                    {isLoading ? "[CONNECTING...]" : "[SIGN IN WITH GOOGLE]"}
-                                </Button>
-
-                                <Button
-                                    onClick={() => handleSSOLogin("github")}
-                                    disabled={isLoading}
-                                    className="w-full bg-accent/20 hover:bg-accent/30 text-accent border-2 border-accent font-semibold py-3 h-auto font-mono rounded-none"
-                                    variant="outline"
-                                >
-                                    {isLoading ? "[CONNECTING...]" : "[SIGN IN WITH GITHUB]"}
-                                </Button>
-
-                                <div className="text-center text-xs text-muted-foreground font-mono">
-                                    <p className="mt-4">▓ neither will actually work right now, but click anyway ▓</p>
-                                </div>
+                        {/* Error Message */}
+                        {error && (
+                            <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-none">
+                                <p className="text-xs text-red-500 font-mono">&gt; ERROR: {error}</p>
                             </div>
                         )}
 
-                        {/* Divider */}
-                        <div className="flex items-center gap-3 text-muted-foreground font-mono text-xs">
-                            <div className="flex-1 border-t border-border"></div>
-                            <span>&gt; OR &lt;</span>
-                            <div className="flex-1 border-t border-border"></div>
-                        </div>
+                        {/* Email/Password Form */}
+                        <form onSubmit={handleEmailLogin} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-accent mb-2 font-mono">&gt; EMAIL:</label>
+                                <div className="relative">
+                                    <Mail size={18} className="absolute left-3 top-3 text-accent/60" />
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="your@email.com"
+                                        required
+                                        className="w-full pl-10 pr-4 py-3 rounded-none border border-border bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent font-mono text-sm"
+                                    />
+                                </div>
+                            </div>
 
-                        {/* Toggle Button */}
-                        <div className="text-center">
-                            {authMethod === "email" ? (
-                                <p className="text-xs text-muted-foreground font-mono">
-                                    prefer{" "}
-                                    <button onClick={() => setAuthMethod("sso")} className="text-accent hover:underline font-semibold">
-                                        SSO?
-                                    </button>
-                                </p>
-                            ) : (
-                                <p className="text-xs text-muted-foreground font-mono">
-                                    prefer{" "}
-                                    <button onClick={() => setAuthMethod("email")} className="text-accent hover:underline font-semibold">
-                                        email?
-                                    </button>
-                                </p>
-                            )}
-                        </div>
+                            <div>
+                                <label className="block text-xs font-medium text-accent mb-2 font-mono">&gt; PASSWORD:</label>
+                                <div className="relative">
+                                    <Lock size={18} className="absolute left-3 top-3 text-accent/60" />
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        required
+                                        className="w-full pl-10 pr-4 py-3 rounded-none border border-border bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent font-mono text-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <Button
+                                type="submit"
+                                disabled={isLoading || !email || !password}
+                                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold py-3 h-auto font-mono rounded-none"
+                            >
+                                {isLoading ? "[AUTHENTICATING...]" : "[LOGIN]"}
+                            </Button>
+
+                            <div className="text-center text-xs text-muted-foreground font-mono space-y-1">
+                                <p className="mt-4">▓ Test Accounts ▓</p>
+                                <p>Admin: admin@example.com / admin123</p>
+                                <p>User: user@example.com / user123</p>
+                            </div>
+                        </form>
                     </div>
                 </Card>
 
                 {/* Footer Message */}
                 <div className="text-center space-y-2">
-                    <p className="text-xs text-muted-foreground font-mono">&gt; you ARE the documents now</p>
-                    <p className="text-xs text-accent/60 font-mono">v0.ROASTER // SYSTEM READY</p>
-                </div>
-
-                {/* Quick Access Link */}
-                <div className="text-center">
-                    <button
-                        onClick={() => navigate("/")}
-                        className="text-sm text-accent hover:underline font-mono font-semibold"
-                    >
-                        skip to dashboard →
-                    </button>
+                    <p className="text-xs text-muted-foreground font-mono">&gt; secure access only</p>
+                    <p className="text-xs text-accent/60 font-mono">v1.ROASTER // SYSTEM READY</p>
                 </div>
             </div>
         </div>

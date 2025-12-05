@@ -1,12 +1,12 @@
 services:
-  # PostgreSQL Database - Shared by Mayan EDMS, Keycloak, and Backend
+  # PostgreSQL Database - Shared by Mayan EDMS and Backend
   postgres:
     image: postgres:15-alpine
     container_name: document-vault-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-documentvault}
+      POSTGRES_DB: ${POSTGRES_USER:-documentvault}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
@@ -19,7 +19,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Redis - Caching and Session Management
+  # Redis - Required by Mayan EDMS
   redis:
     image: redis:7-alpine
     container_name: document-vault-redis
@@ -33,49 +33,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
-
-  # Keycloak - SSO Authentication
-  keycloak:
-    image: quay.io/keycloak/keycloak:23.0
-    container_name: document-vault-keycloak
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB:-keycloak}
-      KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-localhost}
-      KC_HTTP_ENABLED: "true"
-      KC_PROXY: edge
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-    command: start-dev
-    ports:
-      - "8082:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - backend
-      - frontend
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r
-
-            host: http://localhost\r
-
-            Connection: close\r
-
-            \r
-
-            ' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     restart: unless-stopped
 
   # Mayan EDMS - Document Management System
@@ -158,11 +115,6 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${BACKEND_DB:-backend}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/3
-      KEYCLOAK_URL: http://keycloak:8080
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-documentvault}
-      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-backend-api}
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-changeme}
       MAYAN_API_URL: http://mayan-edms:8000/api
       MAYAN_API_TOKEN: ${MAYAN_API_TOKEN:-changeme}
       OLLAMA_API_URL: http://ollama:11434
@@ -174,10 +126,6 @@ services:
       - ./backend:/app
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      keycloak:
         condition: service_healthy
       mayan-edms:
         condition: service_started  # Changed from service_healthy - Mayan takes time to initialize
@@ -204,9 +152,6 @@ services:
       - "3000:3000"
     environment:
       REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
-      REACT_APP_KEYCLOAK_URL: ${REACT_APP_KEYCLOAK_URL:-http://localhost:8082}
-      REACT_APP_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-documentvault}
-      REACT_APP_KEYCLOAK_CLIENT_ID: ${KEYCLOAK_FRONTEND_CLIENT_ID:-frontend-app}
     depends_on:
       - backend
     networks:
@@ -234,6 +179,4 @@ volumes:
   mayan_media:
     driver: local
   ollama_models:
-    driver: local
-  nginx_logs:
     driver: local

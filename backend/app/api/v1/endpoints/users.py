@@ -123,3 +123,32 @@ async def read_user_me(
     Get current user.
     """
     return current_user
+
+@router.put("/me", response_model=UserSchema)
+async def update_user_me(
+    user_in: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Update current user's own profile.
+    """
+    update_data = user_in.dict(exclude_unset=True)
+    
+    # Handle password update
+    if update_data.get("password"):
+        hashed_password = security.get_password_hash(update_data["password"])
+        del update_data["password"]
+        update_data["hashed_password"] = hashed_password
+    
+    # Users cannot change their own superuser status
+    if "is_superuser" in update_data:
+        del update_data["is_superuser"]
+        
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+        
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user

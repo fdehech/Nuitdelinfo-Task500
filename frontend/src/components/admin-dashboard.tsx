@@ -231,7 +231,7 @@ export default function AdminDashboard() {
         }
     }
 
-    // Mock stats for now
+    // Calculate stats from API data
     const totalDocuments = documents.length
     const activeUsers = users.filter(u => u.is_active).length
 

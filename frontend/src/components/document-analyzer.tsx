@@ -120,7 +120,7 @@ export default function DocumentAnalyzer() {
     const handleExtractEntities = async () => {
         if (!selectedDoc) return
         // In a real app, this might be a separate API call or part of metadata
-        // For now, we'll just show tags if available or mock it via chat
+        // Show tags if available, otherwise use chat API to extract entities
         if (selectedDoc.tags && selectedDoc.tags.length > 0) {
             setResults(`🏷️ TAGS: ${selectedDoc.tags.join(", ")}`)
         } else {

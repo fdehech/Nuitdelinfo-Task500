@@ -39,8 +39,6 @@ class MayanService:
                 
             except Exception as e:
                 print(f"Error checking/creating document type: {e}")
-                if settings.ENVIRONMENT == "development":
-                    return 1 # Fallback for dev
                 raise HTTPException(status_code=500, detail=f"Mayan Document Type Error: {e}")
 
     async def upload_document(self, file: UploadFile, document_type_label: str = "Default"):
@@ -87,13 +85,9 @@ class MayanService:
 
             except httpx.HTTPStatusError as e:
                 print(f"Mayan API Error: {e.response.text}")
-                if settings.ENVIRONMENT == "development":
-                    return "mock-mayan-id-123"
                 raise HTTPException(status_code=500, detail=f"Failed to upload to Mayan EDMS: {e}")
             except Exception as e:
                 print(f"Mayan Connection Error: {e}")
-                if settings.ENVIRONMENT == "development":
-                    return "mock-mayan-id-123"
                 raise HTTPException(status_code=500, detail=f"Failed to connect to Mayan EDMS: {e}")
 
     async def get_document(self, document_id: str):
@@ -106,8 +100,6 @@ class MayanService:
                 resp.raise_for_status()
                 return resp.json()
             except Exception as e:
-                if settings.ENVIRONMENT == "development":
-                    return {"id": document_id, "label": "Mock Document"}
                 raise HTTPException(status_code=500, detail=f"Failed to fetch from Mayan: {e}")
 
 mayan_service = MayanService()

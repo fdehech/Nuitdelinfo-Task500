@@ -1,4 +1,5 @@
 import httpx
+from fastapi import HTTPException
 from app.core.config import settings
 
 class OllamaService:
@@ -39,8 +40,7 @@ class OllamaService:
                 return result.get("response", "{}")
             except Exception as e:
                 print(f"Ollama Error: {e}")
-                # Return mock data for dev if Ollama fails
-                return '{"summary": "Mock summary for development.", "tags": ["mock", "dev", "test"]}'
+                raise HTTPException(status_code=503, detail=f"Ollama service unavailable: {e}")
 
     async def chat(self, messages: list):
         """
@@ -62,6 +62,6 @@ class OllamaService:
                 return result.get("message", {}).get("content", "")
             except Exception as e:
                 print(f"Ollama Chat Error: {e}")
-                return "I'm sorry, I couldn't process your request at the moment. Please ensure Ollama is running."
+                raise HTTPException(status_code=503, detail=f"Ollama chat service unavailable: {e}")
 
 ollama_service = OllamaService()
