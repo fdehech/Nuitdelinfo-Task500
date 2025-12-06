@@ -5,7 +5,7 @@ from app.core.config import settings
 class OllamaService:
     def __init__(self):
         self.base_url = settings.OLLAMA_API_URL
-        self.model = "llama3.1" # Default model
+        self.model = "tinyllama" # Faster model for CPU
 
     async def analyze_text(self, text: str):
         """
@@ -33,7 +33,7 @@ class OllamaService:
                         "stream": False,
                         "format": "json" 
                     },
-                    timeout=60.0
+                    timeout=120.0
                 )
                 resp.raise_for_status()
                 result = resp.json()
@@ -55,7 +55,7 @@ class OllamaService:
                         "messages": messages,
                         "stream": False
                     },
-                    timeout=60.0
+                    timeout=120.0
                 )
                 resp.raise_for_status()
                 result = resp.json()

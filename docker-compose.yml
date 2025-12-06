@@ -116,7 +116,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${BACKEND_DB:-backend}
       MAYAN_API_URL: http://mayan-edms:8000/api
-      MAYAN_API_TOKEN: ${MAYAN_API_TOKEN:-changeme}
+      MAYAN_API_TOKEN: eYDPXgyrcJ1NbSio6FC8sRa3lkz5qTvGuU07BmOK
       OLLAMA_API_URL: http://ollama:11434
       STORAGE_PATH: /app/storage
       SECRET_KEY: ${SECRET_KEY:-changeme-secret-key}

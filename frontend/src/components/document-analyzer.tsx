@@ -70,6 +70,8 @@ export default function DocumentAnalyzer() {
             const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
             const token = localStorage.getItem("accessToken");
 
+            console.log("📤 Uploading file:", file.name, "Size:", file.size, "bytes");
+
             const response = await fetch(`${API_URL}/documents/`, {
                 method: "POST",
                 headers: {
@@ -78,15 +80,28 @@ export default function DocumentAnalyzer() {
                 body: formData
             });
 
-            if (!response.ok) throw new Error("Upload failed");
+            console.log("📡 Upload response:", response.status, response.statusText);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("❌ Upload failed:", errorText);
+                throw new Error(`Upload failed: ${response.status} - ${errorText.substring(0, 100)}`);
+            }
 
             const newDoc = await response.json();
-            setDocuments(prev => [...prev, newDoc])
+            console.log("✅ Upload successful:", newDoc);
+
+            // Update list immediately for instant feedback
+            setDocuments(prev => [...prev, newDoc]);
+
+            // Select the newly uploaded document
             setSelectedDoc(newDoc)
             setResults(`Document uploaded and analyzed!\nSummary: ${newDoc.summary || "No summary available."}`)
         } catch (error) {
-            console.error("Upload error:", error)
-            setResults("Error uploading document.")
+            console.error("🚨 Upload error:", error)
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            setResults(`Error uploading document: ${errorMessage}`)
+            alert(`Upload failed: ${errorMessage}`)
         } finally {
             setIsLoading(false)
             if (fileInputRef.current) fileInputRef.current.value = ""
